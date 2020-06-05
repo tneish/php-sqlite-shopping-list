@@ -1,0 +1,223 @@
+<html>
+<head>
+<title>Shopping List</title>
+<meta charset="UTF-8"> 
+<meta name=viewport content="width=device-width, initial-scale=1">
+<style>
+body {
+  font-size: 20px;
+}
+ul.editing {
+    list-style-type:none;
+}
+#left_buttons {
+  float: left;
+  width: 50%;
+}
+#right_buttons {
+  float:right;
+  margin-left: 50%;
+}
+#list {
+  clear:both;
+}
+h1 {
+	clear: both;
+	font-size: 30px;
+}
+.add_button {
+	float:right;  
+}
+input[type=checkbox]
+{
+  /* Double-sized Checkboxes */
+  -ms-transform: scale(2); /* IE */
+  -moz-transform: scale(2); /* FF */
+  -webkit-transform: scale(2); /* Safari and Chrome */
+  -o-transform: scale(2); /* Opera */
+  /* padding: 10px;  /* broken firefox 54 */
+}
+.checkboxtext
+{
+  font-size: 110%;
+  display: inline;
+  padding-left: 10px;
+}
+.oldItemText
+{
+  color: #d3d3d3;  /* light grey */
+}
+input[type=text]
+{
+  display: inline;
+  padding-left: 10px;
+}
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<script src="jquery.ui.touch-punch.min.js"></script>
+<script>
+
+	$( document ).ajaxError(function( event, request, settings ) {
+		$( "#error_log" ).append( "<li>Error requesting page " + settings.url + "</li>" );
+	});
+
+	function compare(a,b) {
+		if (parseInt(a.order) < parseInt(b.order)) {
+			return -1;
+		}
+		if (parseInt(a.order) > parseInt(b.order)) {
+			return 1;
+		}
+		return 0;
+	}
+	
+	var resetAndPopulate = function(data) {
+		var len = data.length;
+		// Sort data here by 'order' field
+		//data.sort(compare);
+		$( "#shopping_list" ).empty(); // needed if we just edited and are resetting
+
+		console.log(len);
+		var current_shop = '';
+		var html = '';
+		for (var i = 0; i < len; i++) {
+			
+			if ((i == 0) || data[i].shop != current_shop) {
+				if (i != 0) { html += '</ul>'; }
+				html += '<h1>' + data[i].shop + '<button shop="' + data[i].shop + '" class="add_button_h1 edit_view">+</button></h1>';
+				html += '<ul shop="' + data[i].shop + '">';
+				current_shop = data[i].shop;
+			}
+			if (! data[i].header == 1) {
+				html += '<li id="' + data[i].id + '" class="shopping_item"><input class="edit_view" type="checkbox" checked><span class="checkboxtext">' + data[i].description + '</span><button class="add_button edit_view">+</button></li>';
+			} else {
+				html += '<li class="hiddenli"></li>';
+			}
+			
+			if (i == len - 1) { html += '</ul>'; }
+			
+			
+		}
+		$("#shopping_list").append(html);
+
+		for (var i = 0; i < len; i++) {
+			// Save for later
+			$( "#" + data[i].id ).data(data[i]);
+		}
+
+		$( "li.hiddenli" ).hide();
+		$( ".list_view" ).show();
+		$( ".edit_view" ).hide();
+		
+	};
+
+	$(document).ready(function(){
+
+		$.getJSON('return_specialty_list_in_json.php', function(data) { resetAndPopulate(data) });
+	
+		$( "#edit_button" ).click(function() {
+			$( "#edit_button" ).hide();
+			$( ".edit_view" ).show();
+			$( "ul" ).toggleClass("editing");
+			$( "ul" ).sortable();
+			
+		});
+		
+		$( "#clear_all_button" ).click(function() {
+			$( ":checkbox" ).each(function() {
+				$( this ).attr('checked', false);
+			});
+		});
+		
+		$( "#cancel_button" ).click(function() {
+			window.location.reload(true);
+		});
+
+		$( "#shopping_list" ).on( "click", ".add_button", function() {
+			var random_num = Math.floor((Math.random() * 10000000000) + 1); 
+			random_input_id = "input_" + random_num.toString();
+			random_li_id = "li_" + random_num.toString(); // Add unique id 'new_<description>_random_id to the <li> element
+			var html = '<li id="' + random_li_id + '" class="shopping_item"><input class="edit_view" type="checkbox" checked><input type="text" id="' + random_input_id + '"><button class="add_button edit_view">+</button></li>';
+			$( this ).closest( "li" ).after(html);
+			$( "#" + random_input_id ).focus();
+		});
+
+		$( "#shopping_list" ).on( "click", ".add_button_h1", function() {
+			var random_num = Math.floor((Math.random() * 10000000000) + 1); 
+			random_input_id = "input_" + random_num.toString();
+			random_li_id = "li_" + random_num.toString(); // Add unique id 'new_<description>_random_id to the <li> element
+			var html = '<li id="' + random_li_id + '" class="shopping_item"><input class="edit_view" type="checkbox" checked><input type="text" id="' + random_input_id + '"><button class="add_button edit_view">+</button></li>';
+			var closest_shop = $(this).attr("shop");
+			$( "ul[shop='" + closest_shop + "']" ).children().first().before(html);
+			$( "#" + random_input_id ).focus();
+		});
+
+		$( "#save_button" ).click(function() {
+			var postString = 'data=';
+			//var orderedLiIdsArray = $( "#shopping_list" ).sortable("toArray"); // Get list order
+			$( "li.shopping_item" ).each(function() {
+				try {
+					itemInfo = $( this ).data();
+					dbUpdateInfo = {};
+					if ($( this ).children( ":checkbox" ).first().prop( "checked" )) {
+						// Add new or update existing
+						if ('id' in itemInfo) {  // update to existing database item
+							// Nothing to update..
+							//dbUpdateInfo.id = itemInfo.id;
+							return;
+						} else {  // new item, no ID
+							dbUpdateInfo.description = $( this ).children( "input:text" ).first().val();
+							if (dbUpdateInfo.description.length < 1) { throw "empty item"; }  // do not add empty items
+
+							dbUpdateInfo.shop = $( this ).closest( "ul" ).attr("shop");
+						}
+										
+					} else {
+						// Remove
+						if ('id' in itemInfo) {
+							// Only items that should already be in database.
+							dbUpdateInfo.removeid = itemInfo.id;
+						} else {
+							throw "Trying to delete non-existent item";
+						}
+					}
+					postString += JSON.stringify(dbUpdateInfo) + ';';		
+				} catch(err) {
+					console.log("Exception caught: " + err);
+					return;
+				}
+			});
+			console.log(postString);
+			//console.log($( "#shopping_list" ).sortable("toArray"));
+			if (postString.length > 0) {
+				jQuery.post('post_updates.php', postString, function(data) { 
+					//alert(data.toString());
+					window.location.reload(true);   // db update OK, start again by reloading page
+				});				
+			} else {
+				window.location.reload(true);
+			}
+			
+		});
+		
+	}); 
+	
+</script>
+</head> 
+
+<body>
+<div id="left_buttons">
+	<button id="edit_button" class="list_view">Edit</button><button id="save_button" class="edit_view">Save</button><br>
+</div>
+<div id="right_buttons">
+	<button id="clear_all_button" class="edit_view">Clear All</button>
+	<button id="cancel_button" class="edit_view">Cancel</button>
+</div>
+<div id="shopping_list">
+ <p></p>
+ <ul id="error_log">
+ </ul>
+</div>
+</body>
+</html>
