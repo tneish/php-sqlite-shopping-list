@@ -2,6 +2,7 @@
     // history
 	// 1.0: original, change hidden and order
 	// 2.0: add lastused time for greying out old entries
+	// 3.0: add support for delete items
 	
 	$dbitems = explode(";", substr($_POST["data"], 0, -1));  // chop last delimeter off
 
@@ -24,7 +25,10 @@
 	$q_update = $dbh->prepare($sql_update);
 	$sql_insert = 'INSERT INTO `shopping_list` (`order`, `hidden`, `description`, `lastused`) VALUES (:order, :hidden,:description,:lastused)';
 	$q_insert = $dbh->prepare($sql_insert);		
-	
+
+	$sql_delete = 'DELETE FROM `shopping_list` WHERE `id` = :id';
+	$q_delete = $dbh->prepare($sql_delete);
+
 	// '2017-03-25' 
 	$lastusedStringNow = date('Y-m-d');  // today's date to be stored. Matches javascript ISO format
 	
@@ -32,25 +36,41 @@
 	foreach ($dbitems as $dbitem) {
 		$itemInfo = json_decode($dbitem, true);
 		if (array_key_exists('id', $itemInfo)) {
-			// id present, update hidden
-			try {
-				//var_dump($itemInfo);
-				$b = array($itemInfo['hidden'],$itemInfo['order'],$itemInfo['id'],$itemInfo['lastused']);
-				$b[0] = (string)$b[0];
-				$b[1] = (string)$b[1];
-				$q_update->bindParam(":order", $b[1]);
-				$q_update->bindParam(":hidden", $b[0]);
-				if ($b[0] == '0') { // item is checked, update last used date to now
-					$q_update->bindParam(":lastused", $lastusedStringNow);
-				} else {
-					$q_update->bindParam(":lastused", $b[3]);  // keep previous date
+			// id present, check if delete or update
+			if (array_key_exists('deleteflag', $itemInfo)) {
+				// delete item
+				try {
+					//var_dump($itemInfo);
+					$b = array($itemInfo['id']);
+					$b[0] = (string)$b[0];
+					$q_delete->bindParam(":id", $b[0]);
+					$q_delete->execute();
+				} catch (PDOException $e) {
+					var_dump($e);
 				}
-				$q_update->bindParam(":id", $b[2]);
-
-				$q_update->execute();
-			} catch (PDOException $e) {
-				var_dump($e);
+			
+			} else {
+				// update hidden
+				try {
+					//var_dump($itemInfo);
+					$b = array($itemInfo['hidden'],$itemInfo['order'],$itemInfo['id'],$itemInfo['lastused']);
+					$b[0] = (string)$b[0];
+					$b[1] = (string)$b[1];
+					$q_update->bindParam(":order", $b[1]);
+					$q_update->bindParam(":hidden", $b[0]);
+					if ($b[0] == '0') { // item is checked, update last used date to now
+						$q_update->bindParam(":lastused", $lastusedStringNow);
+					} else {
+						$q_update->bindParam(":lastused", $b[3]);  // keep previous date
+					}
+					$q_update->bindParam(":id", $b[2]);
+	
+					$q_update->execute();
+				} catch (PDOException $e) {
+					var_dump($e);
+				}
 			}
+
 		} else {  // new item 
 			try {
 				//var_dump($itemInfo);

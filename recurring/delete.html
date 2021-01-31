@@ -1,0 +1,196 @@
+<html>
+<head>
+<title>Delete Shopping List</title>
+<meta charset="UTF-8"> 
+<meta name=viewport content="width=device-width, initial-scale=1">
+<style>
+body {
+  font-size: 20px;
+  background-color: HoneyDew;
+}
+ul.editing {
+    list-style-type:none;
+}
+#left_buttons {
+  float: left;
+  width: 50%;
+}
+#right_buttons {
+  float:right;
+  margin-left: 50%;
+}
+#list {
+  clear:both;
+}
+.add_button {
+	float:right;  
+}
+input[type=checkbox]
+{
+  /* Double-sized Checkboxes */
+  -ms-transform: scale(2); /* IE */
+  -moz-transform: scale(2); /* FF */
+  -webkit-transform: scale(2); /* Safari and Chrome */
+  -o-transform: scale(2); /* Opera */
+  /* padding: 10px;  /* broken firefox 54 */
+}
+.checkboxtext
+{
+  font-size: 110%;
+  display: inline;
+  padding-left: 10px;
+}
+.recentItemText
+{
+  font-weight: bold;
+}
+.oldItemText
+{
+  color: #4b0082;  /* indigo */
+}
+input[type=text]
+{
+  display: inline;
+  padding-left: 10px;
+}
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<script src="jquery.ui.touch-punch.min.js"></script>
+<script>
+	$( document ).ajaxError(function( event, request, settings ) {
+		$( "#error_log" ).append( "<li>Error requesting page " + settings.url + "</li>" );
+	});
+
+	function compare(a,b) {
+		if (parseInt(a.order) < parseInt(b.order)) {
+			return -1;
+		}
+		if (parseInt(a.order) > parseInt(b.order)) {
+			return 1;
+		}
+		return 0;
+	}
+	
+	var resetAndPopulate = function(data) {
+		var len = data.length;
+		// Sort data here by 'order' field
+		data.sort(compare);
+		$( "#shopping_list" ).empty(); // needed if we just edited and are resetting
+		var d_today = new Date();
+		var millis_startofgrey = d_today.getTime() - 1000 * 60 * 60 * 24 * 7 * 3;  // 3 weeks ago
+		for (var i = 0; i< len; i++) {
+			var html = '';
+			try { 
+				var d_lastused = new Date(data[i].lastused); 
+				if ( isNaN( d_lastused.getTime() ) || d_lastused.getTime() == 0 ) {
+					// date is not valid. Default black.
+					textColour = '';
+				} else {
+					//console.log("d_lastused.getTime() = " + d_lastused.getTime().toString());
+					//console.log("millis_startofgrey) = " + millis_startofgrey.toString());
+					if (d_lastused.getTime() < millis_startofgrey) {  // should be grey
+						// colour = grey
+						textColour = ' ' + 'oldItemText'; // name of CSS class
+					} else {
+						// colour = black  (do not add olditemtext CSS class)
+						textColour = ' ' + 'recentItemText';
+					}
+				}
+			} catch(err) {  // date cannot be converted or compared. 
+				// colour = black (default)
+				console.log("Exception caught converting lastused to Date object: " + err);
+				textColour = '';
+			}
+			// Add all items to edit view and leave all checkboxes unticked.
+			html += '<li id="' + data[i].id + '" class="edit_view shopping_item"><input type="checkbox"><span class="checkboxtext' + textColour + '">' + data[i].description + '</span></li>';
+			$( "#shopping_list" ).append(html);
+			$( "#" + data[i].id ).data(data[i]);
+		}
+		// Start in edit view
+		$( ".list_view" ).hide();
+		$( ".edit_view" ).show();
+
+	};
+	
+	$(document).ready(function(){
+		$.getJSON('return_list_in_json.php', function(data) { resetAndPopulate(data) });
+		// Start in edit view..
+		$( ".edit_view" ).show();
+		$( "#shopping_list" ).toggleClass("editing");
+		$( "#shopping_list" ).sortable();
+		
+		// If you make a mistake, and want to start over..
+		$( "#clear_all_button" ).click(function() {
+			$( ":checkbox" ).each(function() {
+				$( this ).attr('checked', false);
+			});
+		});
+		
+		// Panic, exit..
+		$( "#cancel_button" ).click(function() {
+			window.location.reload(true);
+		});
+
+		
+		$( "#delete_button" ).click(function() {
+			var postString = 'data=';
+			var orderedLiIdsArray = $( "#shopping_list" ).sortable("toArray"); // Get list order
+			$( "li.shopping_item" ).each(function() {
+				try {
+					itemInfo = $( this ).data();
+					dbUpdateInfo = {};
+					
+					// Use <li> id attribute as lookup into list order array to get index, then save as 'order'
+					dbUpdateInfo.order = orderedLiIdsArray.indexOf($( this ).attr( 'id' ));
+					
+					if ('id' in itemInfo) {  // existing database item
+						// If checked, then user wants to delete..
+						if ($( this ).children( ":checkbox" ).first().prop( "checked" )) {
+							dbUpdateInfo.id = itemInfo.id;
+							dbUpdateInfo.deleteflag = "y";  // delete flag
+							postString += JSON.stringify(dbUpdateInfo) + ';';
+						}
+					} else {  // new item, no ID
+						throw "cannot add new item in delete page!";
+					}
+				} catch(err) {
+					console.log("Exception caught: " + err);
+					return;
+				}
+			});
+			console.log(postString);
+			console.log($( "#shopping_list" ).sortable("toArray"));
+			if (postString.length > 0) {
+				jQuery.post('post_updates.php', postString, function(data) { 
+					//alert(data.toString());
+					window.location.reload(true);   // db update OK, start again by reloading page
+					});
+			} else {
+				throw "Nothing to delete!";
+			}
+			
+		});
+		
+	}); 
+	
+	
+</script>
+</head> 
+<body>
+<div id="left_buttons">
+	<button id="delete_button" class="edit_view">Delete Checked!</button><br>
+</div>
+<div id="right_buttons">
+	<button id="clear_all_button" class="edit_view">Clear All</button>
+	<button id="cancel_button" class="edit_view">Cancel</button>
+</div>
+<div id="list">
+ <ul id="shopping_list">
+ </ul> 
+ <p></p>
+ <ul id="error_log">
+ </ul>
+</div>
+</body>
+</html>
