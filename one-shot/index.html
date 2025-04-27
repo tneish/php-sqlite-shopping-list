@@ -153,7 +153,7 @@ input[type=text]
 			$( "#" + random_input_id ).focus();
 		});
 
-		$( "#save_button" ).click(function() {
+		$( ".save_button" ).click(function() {
 			var postString = 'data=';
 			//var orderedLiIdsArray = $( "#shopping_list" ).sortable("toArray"); // Get list order
 			$( "li.shopping_item" ).each(function() {
@@ -208,7 +208,7 @@ input[type=text]
 
 <body>
 <div id="left_buttons">
-	<button id="edit_button" class="list_view">Edit</button><button id="save_button" class="edit_view">Save</button><br>
+	<button id="edit_button" class="list_view">Edit</button><button class="edit_view save_button">Save</button><br>
 </div>
 <div id="right_buttons">
 	<button id="clear_all_button" class="edit_view">Clear All</button>
@@ -220,7 +220,7 @@ input[type=text]
  </ul>
 </div>
 <div id="left_buttons">
-	<button id="save_button" class="edit_view">Save</button><br>
+	<button class="edit_view save_button">Save</button><br>
 </div>
 </body>
 </html>
