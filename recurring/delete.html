@@ -133,7 +133,7 @@ input[type=text]
 		});
 
 		
-		$( "#delete_button" ).click(function() {
+		$( ".delete_button" ).click(function() {
 			var postString = 'data=';
 			var orderedLiIdsArray = $( "#shopping_list" ).sortable("toArray"); // Get list order
 			$( "li.shopping_item" ).each(function() {
@@ -179,7 +179,7 @@ input[type=text]
 </head> 
 <body>
 <div id="left_buttons">
-	<button id="delete_button" class="edit_view">Delete Checked!</button><br>
+	<button class="edit_view delete_button">Delete Checked!</button><br>
 </div>
 <div id="right_buttons">
 	<button id="clear_all_button" class="edit_view">Clear All</button>
@@ -191,6 +191,9 @@ input[type=text]
  <p></p>
  <ul id="error_log">
  </ul>
+</div>
+<div id="left_buttons">
+	<button class="edit_view delete_button">Delete Checked!</button><br>
 </div>
 </body>
 </html>
